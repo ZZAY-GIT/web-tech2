@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}Главная{% endblock %}
+
+{% block content %}
+
+<h1>Счётчик посещений</h1>
+
+<div class="alert alert-info">
+    Вы посетили эту страницу <strong>{{ visit_count }} раз</strong>
+</div>
+
+{% if message %}
+<div class="alert alert-success">
+    {{ message }}
+</div>
+{% endif %}
+
+{% endblock %}
