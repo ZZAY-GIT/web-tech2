@@ -25,7 +25,7 @@
                 {% for comment in post.comments %}
                     <div class="d-flex mb-4">
                         <div class="flex-shrink-0">
-                            <img src="{{ url_for('static', filename='images/avatar.jpg') }}"
+                            <img src="/static/images/avatar.jpg"
                                 class="rounded-circle"
                                 width="48" height="48"
                                 alt="{{ comment.author }}">
@@ -38,7 +38,7 @@
                                 {% for reply in comment.replies %}
                                     <div class="d-flex mt-4 ms-5">
                                         <div class="flex-shrink-0">
-                                            <img src="{{ url_for('static', filename='images/avatar.jpg') }}"
+                                            <img src="/static/images/avatar.jpg"
                                                 class="rounded-circle"
                                                 width="48" height="48"
                                                 alt="{{ reply.author }}">

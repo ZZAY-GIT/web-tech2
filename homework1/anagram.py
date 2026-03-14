@@ -1,0 +1,1 @@
+print("YES" if sorted(input().lower()) == sorted(input().lower()) else "NO")
