@@ -6,6 +6,6 @@ __pycache__/
 .pytest_cache/
 
 *.zip
-
+.python-version
 *.log
 test.log
