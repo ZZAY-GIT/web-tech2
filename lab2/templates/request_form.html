@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+
+    <h2 class="mb-4 text-center">Форма отправки данных</h2>
+
+    <div class="card mb-4">
+      <div class="card-body">
+        <form method="post">
+          <div class="mb-3">
+            <label class="form-label">Логин</label>
+            <input type="text" name="username" class="form-control" value="{{ request.form.username }}">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Пароль</label>
+            <input type="password" name="password" class="form-control">
+          </div>
+          <button type="submit" class="btn btn-primary">Отправить</button>
+        </form>
+      </div>
+    </div>
+
+    <h4 class="mt-5">Полученные данные формы (POST)</h4>
+    <div class="table-responsive">
+      <table class="table table-bordered table-sm">
+        <thead class="table-light">
+          <tr><th>Поле</th><th>Значение</th></tr>
+        </thead>
+        <tbody>
+          {% if form_data %}
+            {% for key, value in form_data.items() %}
+            <tr>
+              <td><code>{{ key }}</code></td>
+              <td>{{ value }}</td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            <tr><td colspan="2" class="text-center text-muted py-4">Нет данных</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

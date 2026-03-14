@@ -10,15 +10,36 @@ def start():
     return render_template("base.html")
 
 
-@app.route("/info", methods=["GET", "POST"])
-def info():
-    info = {
-        "args": dict(request.args),
-        "headers": dict(request.headers),
-        "cookies": dict(request.cookies),
-        "form": dict(request.form)
-    }
-    return render_template("info.html", info=info)
+@app.route("/request_form", methods=["GET", "POST"])
+def request_form():
+    return render_template(
+        "request_form.html",
+        form_data=request.form
+    )
+
+
+@app.route("/request_get")
+def request_get():
+    return render_template(
+        "request_get.html",
+        args=request.args
+    )
+
+
+@app.route("/request_headers")
+def request_headers():
+    return render_template(
+        "request_headers.html",
+        headers=request.headers
+    )
+
+
+@app.route("/request_cookies")
+def request_cookies():
+    return render_template(
+        "request_cookies.html",
+        cookies=request.cookies
+    )
 
 
 @app.route("/phone", methods=["GET", "POST"])
