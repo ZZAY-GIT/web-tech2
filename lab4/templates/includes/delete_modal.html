@@ -1,0 +1,31 @@
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Подтверждение удаления</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Вы уверены, что хотите удалить пользователя <strong id="userFio"></strong>?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Нет</button>
+                <form id="deleteForm" method="POST">
+                    <button type="submit" class="btn btn-danger">Да, удалить</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const deleteModal = document.getElementById('deleteModal');
+    deleteModal.addEventListener('show.bs.modal', event => {
+        const button = event.relatedTarget;
+        const userId = button.getAttribute('data-user-id');
+        const userFio = button.getAttribute('data-user-fio');
+        
+        document.getElementById('userFio').textContent = userFio;
+        document.getElementById('deleteForm').action = `/user/${userId}/delete`;
+    });
+</script>

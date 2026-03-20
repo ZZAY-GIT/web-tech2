@@ -9,3 +9,4 @@ __pycache__/
 .python-version
 *.log
 test.log
+instance

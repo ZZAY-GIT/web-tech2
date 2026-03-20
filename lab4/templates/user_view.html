@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Просмотр пользователя{% endblock %}
+
+{% block content %}
+
+<h1>Просмотр пользователя</h1>
+
+<div class="card">
+    <div class="card-body">
+        <table class="table table-borderless">
+            <tr>
+                <th style="width: 35%">ID</th>
+                <td>{{ user.id }}</td>
+            </tr>
+            <tr>
+                <th>Логин</th>
+                <td>{{ user.login }}</td>
+            </tr>
+            <tr>
+                <th>ФИО</th>
+                <td>{{ get_fio(user) or "— не указано —" }}</td>
+            </tr>
+            <tr>
+                <th>Роль</th>
+                <td>{{ user.role.name if user.role else "— без роли —" }}</td>
+            </tr>
+        </table>
+    </div>
+</div>
+
+<div class="mt-4">
+    <a href="{{ url_for('index') }}" class="btn btn-secondary">Назад к списку</a>
+</div>
+
+{% endblock %}
