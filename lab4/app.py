@@ -6,8 +6,13 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField, SelectField
 from wtforms.validators import DataRequired, Length, EqualTo, ValidationError
 import re
+from functools import wraps
+from sqlalchemy import func
 from datetime import datetime
 import os
+from io import StringIO
+import csv
+from flask import Response
 
 
 app = Flask(__name__, template_folder='templates')
@@ -18,6 +23,21 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
+
+
+@app.before_request
+def log_visit():
+    if request.path.startswith('/static') or request.path == '/favicon.ico':
+        return
+
+    user_id = current_user.id if current_user.is_authenticated else None
+
+    visit = VisitLog(
+        path=request.full_path,
+        user_id=user_id
+    )
+    db.session.add(visit)
+    db.session.commit()
 
 
 class Role(db.Model):
@@ -41,6 +61,47 @@ class User(db.Model, UserMixin):
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+
+
+class VisitLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    path = db.Column(db.String(200), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    user = db.relationship('User', backref='visits', lazy=True)
+
+
+def check_rights(action):
+    """ action: 'create', 'edit_any', 'delete', 'view_any_profile', 'view_all_logs', 'edit_own', 'view_own_logs' """
+    def decorator(view_func):
+        @wraps(view_func)
+        def decorated(*args, **kwargs):
+            if not current_user.is_authenticated:
+                flash('Необходимо войти в систему', 'warning')
+                return redirect(url_for('login'))
+
+            role = current_user.role.name if current_user.role else 'guest'
+
+            allowed = False
+
+            if role == 'admin':
+                allowed = True
+            elif role == 'user':
+                if action in ['edit_own', 'view_own_logs', 'view_own_profile']:
+                    allowed = True
+                elif action == 'view_profile' and 'id' in kwargs and kwargs['id'] == current_user.id:
+                    allowed = True
+
+            if not allowed:
+                flash('У вас недостаточно прав для доступа к данной странице.', 'danger')
+                return redirect(url_for('index'))
+
+            return view_func(*args, **kwargs)
+        return decorated
+    return decorator
+
+
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -128,10 +189,14 @@ def logout():
 @app.route('/user/<int:id>')
 def user_view(id):
     user = User.query.get_or_404(id)
-    return render_template('user_view.html', user=user, get_fio=get_fio)
+    if current_user.role and current_user.role.name == 'admin' or user.id == current_user.id:
+        return render_template('user_view.html', user=user, get_fio=get_fio)
+    flash('У вас недостаточно прав', 'danger')
+    return redirect(url_for('index'))
 
 @app.route('/user/create', methods=['GET', 'POST'])
 @login_required
+@check_rights('create')
 def user_create():
     form = UserCreateForm()
     form.role_id.choices = [(0, '— без роли —')] + [(r.id, r.name) for r in Role.query.all()]
@@ -155,24 +220,29 @@ def user_create():
 
 @app.route('/user/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
+@check_rights("edit")
 def user_edit(id):
     user = User.query.get_or_404(id)
     form = UserEditForm(obj=user)
     form.role_id.choices = [(0, '— без роли —')] + [(r.id, r.name) for r in Role.query.all()]
     form.role_id.data = user.role_id or 0
-
     if form.validate_on_submit():
         user.first_name  = form.first_name.data
         user.last_name   = form.last_name.data or None
         user.middle_name = form.middle_name.data or None
-        user.role_id     = form.role_id.data if form.role_id.data != 0 else None
+
+        if current_user.role.name == 'admin':
+            user.role_id = form.role_id.data if form.role_id.data != 0 else None
+
         db.session.commit()
         flash('Данные обновлены', 'success')
         return redirect(url_for('index'))
     return render_template('user_form.html', form=form, title='Редактирование пользователя', user=user)
 
+
 @app.route('/user/<int:id>/delete', methods=['POST'])
 @login_required
+@check_rights('delete')
 def user_delete(id):
     user = User.query.get_or_404(id)
     if user.id == current_user.id:
@@ -201,11 +271,9 @@ def change_password():
 def init_db():
     with app.app_context():
         db.create_all()
-
         if Role.query.count() == 0:
             roles = [
                 Role(name='admin', description='Администратор'),
-                Role(name='manager', description='Менеджер'),
                 Role(name='user', description='Обычный пользователь'),
             ]
             db.session.bulk_save_objects(roles)
@@ -224,6 +292,121 @@ def init_db():
             db.session.add(admin)
             db.session.commit()
             print("Создан тестовый администратор: login='admin', пароль='Admin123!'")
+
+
+@app.route('/visit-logs')
+@login_required
+@check_rights('view_all_logs')  # для админа
+def visit_logs():
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    
+    pagination = VisitLog.query.order_by(VisitLog.created_at.desc())\
+        .paginate(page=page, per_page=per_page, error_out=False)
+    
+    visits = pagination.items
+    
+    return render_template('visit_logs.html', 
+                          visits=visits, 
+                          pagination=pagination,
+                          get_fio=get_fio)
+
+
+@app.route('/visit-logs/my')
+@login_required
+@check_rights('view_own_logs')
+def my_visit_logs():
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    
+    pagination = VisitLog.query.filter_by(user_id=current_user.id)\
+        .order_by(VisitLog.created_at.desc())\
+        .paginate(page=page, per_page=per_page, error_out=False)
+    
+    return render_template('visit_logs.html', 
+                          visits=pagination.items, 
+                          pagination=pagination,
+                          get_fio=get_fio,
+                          is_my=True)
+
+
+@app.route('/reports/pages')
+@login_required
+@check_rights('view_all_logs')
+def report_pages():
+    stats = db.session.query(
+        VisitLog.path,
+        func.count(VisitLog.id).label('visits')
+    ).group_by(VisitLog.path)\
+     .order_by(func.count(VisitLog.id).desc())\
+     .all()
+    
+    return render_template('report_pages.html', stats=stats)
+
+
+@app.route('/reports/users')
+@login_required
+@check_rights('view_all_logs')
+def report_users():
+    subq = db.session.query(
+        VisitLog.user_id,
+        func.count(VisitLog.id).label('visits')
+    ).group_by(VisitLog.user_id)\
+     .subquery()
+    
+    stats = db.session.query(subq.c.user_id, subq.c.visits)\
+        .order_by(subq.c.visits.desc())\
+        .all()
+    
+    result = []
+    for user_id, cnt in stats:
+        if user_id:
+            u = User.query.get(user_id)
+            name = get_fio(u) if u else "— удалён —"
+        else:
+            name = "Неаутентифицированный пользователь"
+        result.append((name, cnt))
+    
+    return render_template('report_users.html', stats=result)
+
+
+@app.route('/reports/users/export')
+@login_required
+@check_rights('view_all_logs')
+def export_users():
+    # Тот же запрос, что и в report_users
+    subq = db.session.query(
+        VisitLog.user_id,
+        func.count(VisitLog.id).label('visits')
+    ).group_by(VisitLog.user_id)\
+     .subquery()
+    
+    stats = db.session.query(subq.c.user_id, subq.c.visits)\
+        .order_by(subq.c.visits.desc())\
+        .all()
+    
+    result = []
+    for user_id, cnt in stats:
+        if user_id:
+            u = db.session.get(User, user_id)  # используем современный вариант
+            name = get_fio(u) if u else "— удалён —"
+        else:
+            name = "Неаутентифицированный пользователь"
+        result.append((name, cnt))
+    
+    output = StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['Пользователь', 'Посещений'])
+    
+    for name, count in result:
+        writer.writerow([name, count])
+    
+    response = Response(
+        output.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-disposition": "attachment; filename=users_report.csv"}
+    )
+    return response
 
 
 if __name__ == '__main__':

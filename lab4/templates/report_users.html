@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Отчёт по посещениям пользователей{% endblock %}
+
+{% block content %}
+
+<h1>Отчёт по посещениям пользователей</h1>
+
+{% if stats %}
+<div class="table-responsive">
+    <table class="table table-striped table-hover">
+        <thead class="table-dark">
+            <tr>
+                <th>№</th>
+                <th>Пользователь</th>
+                <th>Количество посещений</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for item in stats %}
+        <tr>
+            <td>{{ loop.index }}</td>
+            {% if item is iterable and item is not string and item|length == 2 %}
+                <td>{{ item[0] }}</td>
+                <td>{{ item[1] }}</td>
+            {% else %}
+                <td colspan="2" class="text-danger">Ошибка данных: {{ item }}</td>
+            {% endif %}
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="mt-4">
+    <a href="{{ url_for('export_users') }}" class="btn btn-success">
+        <i class="bi bi-download"></i> Экспорт в CSV
+    </a>
+</div>
+
+{% else %}
+<div class="alert alert-info">
+    Данные по посещениям пользователей пока отсутствуют.
+</div>
+{% endif %}
+
+<div class="mt-4">
+    <a href="{{ url_for('visit_logs') }}" class="btn btn-secondary">Назад к журналу</a>
+</div>
+
+{% endblock %}

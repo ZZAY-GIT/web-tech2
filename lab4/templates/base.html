@@ -19,6 +19,20 @@
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('index') }}">Список пользователей</a>
                 </li>
+                {% if current_user.is_authenticated and current_user.role.name == 'admin' %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('visit_logs') }}">Журнал посещений</a>
+                </li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                        Отчёты
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{{ url_for('report_pages') }}">По страницам</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('report_users') }}">По пользователям</a></li>
+                    </ul>
+                </li>
+                {% endif %}
             </ul>
 
             <ul class="navbar-nav">
@@ -62,7 +76,7 @@
 <footer class="py-3 mt-auto bg-dark text-white text-center">
     <div class="container">
         Амплеенков Даниил Олегович, 241-327<br>
-        Лабораторная работа №4 — Управление учётными записями пользователей (Flask + SQLAlchemy)
+        Лабораторная работа №4
     </div>
 </footer>
 
