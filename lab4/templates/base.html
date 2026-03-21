@@ -19,10 +19,15 @@
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('index') }}">Список пользователей</a>
                 </li>
-                {% if current_user.is_authenticated and current_user.role.name == 'admin' %}
+                {% if current_user.is_authenticated %}
                 <li class="nav-item">
+                    {% if current_user.role.name == 'admin' %}
                     <a class="nav-link" href="{{ url_for('visit_logs') }}">Журнал посещений</a>
+                    {% else %}
+                    <a class="nav-link" href="{{ url_for('visit_logs') }}">Журнал посещений</a>
+                    {% endif %}
                 </li>
+                {% if current_user.role.name == 'admin' %}
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                         Отчёты
@@ -32,6 +37,7 @@
                         <li><a class="dropdown-item" href="{{ url_for('report_users') }}">По пользователям</a></li>
                     </ul>
                 </li>
+                {% endif %}
                 {% endif %}
             </ul>
 

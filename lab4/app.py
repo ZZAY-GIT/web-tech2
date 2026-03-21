@@ -220,12 +220,25 @@ def user_create():
 
 @app.route('/user/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
-@check_rights("edit")
 def user_edit(id):
     user = User.query.get_or_404(id)
+    if current_user.role.name == 'admin':
+        allowed = True
+    elif current_user.id == user.id:
+        allowed = True
+    else:
+        allowed = False
+    if not allowed:
+        flash('У вас недостаточно прав для редактирования этого пользователя', 'danger')
+        return redirect(url_for('index'))
+    
     form = UserEditForm(obj=user)
     form.role_id.choices = [(0, '— без роли —')] + [(r.id, r.name) for r in Role.query.all()]
     form.role_id.data = user.role_id or 0
+
+    if current_user.role.name != 'admin':
+        form.role_id.render_kw = {'disabled': 'disabled'}
+
     if form.validate_on_submit():
         user.first_name  = form.first_name.data
         user.last_name   = form.last_name.data or None
@@ -296,20 +309,21 @@ def init_db():
 
 @app.route('/visit-logs')
 @login_required
-@check_rights('view_all_logs')  # для админа
 def visit_logs():
+    if current_user.role.name != 'admin':
+        return redirect(url_for('my_visit_logs'))
+
     page = request.args.get('page', 1, type=int)
     per_page = 20
     
     pagination = VisitLog.query.order_by(VisitLog.created_at.desc())\
         .paginate(page=page, per_page=per_page, error_out=False)
     
-    visits = pagination.items
-    
     return render_template('visit_logs.html', 
-                          visits=visits, 
+                          visits=pagination.items, 
                           pagination=pagination,
-                          get_fio=get_fio)
+                          get_fio=get_fio,
+                          is_admin=True)
 
 
 @app.route('/visit-logs/my')
@@ -364,7 +378,7 @@ def report_users():
             u = User.query.get(user_id)
             name = get_fio(u) if u else "— удалён —"
         else:
-            name = "Неаутентифицированный пользователь"
+            name = "Неавторизованный пользователь"
         result.append((name, cnt))
     
     return render_template('report_users.html', stats=result)
@@ -374,7 +388,6 @@ def report_users():
 @login_required
 @check_rights('view_all_logs')
 def export_users():
-    # Тот же запрос, что и в report_users
     subq = db.session.query(
         VisitLog.user_id,
         func.count(VisitLog.id).label('visits')
@@ -388,7 +401,7 @@ def export_users():
     result = []
     for user_id, cnt in stats:
         if user_id:
-            u = db.session.get(User, user_id)  # используем современный вариант
+            u = db.session.get(User, user_id)
             name = get_fio(u) if u else "— удалён —"
         else:
             name = "Неаутентифицированный пользователь"
